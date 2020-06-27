@@ -12,12 +12,22 @@ import apiversioning.parser.ApiVersionParser.ApiVersionSpecificationContext;
 
 public class ApiVersionLoader {
 	
+	private final ApiVersionResolver versionResolver;
+	
+	public ApiVersionLoader() {
+		this(new IdleApiVersionResolver());
+	}
+	
+	public ApiVersionLoader(ApiVersionResolver versionResolver) {
+		this.versionResolver = versionResolver;
+	}
+	
 	public ApiVersion loadFromFile(String fileName) throws IOException {
-		return this.loadFromStream(CharStreams.fromFileName(fileName), new IdleApiVersionResolver());
+		return this.loadFromStream(CharStreams.fromFileName(fileName), this.versionResolver);
 	}
 	
 	public ApiVersion loadFromString(String input) {
-		return this.loadFromStream(CharStreams.fromString(input), new IdleApiVersionResolver());
+		return this.loadFromStream(CharStreams.fromString(input), this.versionResolver);
 	}
 	
 	private ApiVersion loadFromStream(CharStream charStream, ApiVersionResolver resolver) {

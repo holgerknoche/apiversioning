@@ -2,6 +2,7 @@ package apiversioning.model;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public enum PrimitiveType implements FixedType {
 	INT32("int32"),
@@ -58,6 +59,11 @@ public enum PrimitiveType implements FixedType {
 	@Override
 	public String toString() {
 		return this.getName();
+	}
+	
+	@Override
+	public Optional<Field> findField(String name) {
+		return Optional.empty();
 	}
 	
 }

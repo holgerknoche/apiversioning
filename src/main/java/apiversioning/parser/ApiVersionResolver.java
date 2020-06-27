@@ -1,9 +1,11 @@
 package apiversioning.parser;
 
+import java.util.Optional;
+
 import apiversioning.model.ApiVersion;
 
 public interface ApiVersionResolver {
 	
-	public ApiVersion resolveVersion(String versionIdentifier);
+	public Optional<ApiVersion> resolveVersion(String versionIdentifier);
 
 }

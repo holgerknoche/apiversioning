@@ -4,12 +4,18 @@ import static apiversioning.parser.ParseUtil.asText;
 import static apiversioning.parser.ParseUtil.unquote;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import apiversioning.model.ApiVersion;
 import apiversioning.model.Field;
 import apiversioning.model.Namespace;
 import apiversioning.model.NumericType;
+import apiversioning.model.Path;
 import apiversioning.model.PrimitiveType;
 import apiversioning.model.StringType;
 import apiversioning.model.Structure;
@@ -21,6 +27,7 @@ import apiversioning.parser.ApiVersionParser.FieldDeclarationContext;
 import apiversioning.parser.ApiVersionParser.FixedNumericContext;
 import apiversioning.parser.ApiVersionParser.FixedStringContext;
 import apiversioning.parser.ApiVersionParser.FromStatementContext;
+import apiversioning.parser.ApiVersionParser.IdentifierContext;
 import apiversioning.parser.ApiVersionParser.NamespaceDeclarationContext;
 import apiversioning.parser.ApiVersionParser.PrimitiveTypeContext;
 import apiversioning.parser.ApiVersionParser.QualifiedNameContext;
@@ -28,11 +35,13 @@ import apiversioning.parser.ApiVersionParser.StructureDeclarationContext;
 
 class ApiVersionModelBuilder extends ApiVersionBaseVisitor<Void> {
 		
+	private static final Logger LOGGER = LoggerFactory.getLogger(ApiVersionModelBuilder.class);
+	
 	private final ApiVersionResolver versionResolver;
 	
 	private final StructuralElementLookup elementLookup;
 	
-	private ApiVersion predecessor;
+	private Optional<ApiVersion> predecessor;
 
 	private List<Namespace> namespaces;
 	
@@ -47,7 +56,7 @@ class ApiVersionModelBuilder extends ApiVersionBaseVisitor<Void> {
 	
 	public ApiVersion buildApiVersionFrom(ApiVersionSpecificationContext specification) {
 		// Clear work fields
-		this.predecessor = null;
+		this.predecessor = Optional.empty();
 		this.namespaces = new ArrayList<>();
 		this.currentNamespace = null;
 		this.currentStructure = null;
@@ -61,7 +70,13 @@ class ApiVersionModelBuilder extends ApiVersionBaseVisitor<Void> {
 	public Void visitFromStatement(FromStatementContext ctx) {
 		// Retrieve and resolve the predecessor model ID
 		var predecessorId = unquote(ctx.previousVersion.getText());
-		this.predecessor = this.versionResolver.resolveVersion(predecessorId);
+		var predecessor = this.versionResolver.resolveVersion(predecessorId);
+		
+		if (!predecessor.isPresent()) {
+			throw new ApiVersionParseException(ctx.previousVersion, "Predecessor model '" + predecessorId + "' could not be resolved.");
+		}
+		
+		this.predecessor = predecessor;
 		
 		return null;
 	}	
@@ -74,6 +89,16 @@ class ApiVersionModelBuilder extends ApiVersionBaseVisitor<Void> {
 		this.namespaces.add(namespace);
 		this.currentNamespace = namespace;
 		
+		// Try to find a predecessor for this type if the model has a predecessor
+		if (this.predecessor.isPresent()) {
+			// TODO Currently, we do not support namespace replacements
+			Path path = namespace.getPath();
+			var predecessorNamespace = path.resolveNamespace(this.predecessor.get());
+			
+			namespace.setPredecessor(predecessorNamespace);
+			LOGGER.debug("Predecessor of '%s' was resolved to '%s'.", namespace, predecessorNamespace);
+		}
+		
 		return super.visitNamespaceDeclaration(ctx);
 	}	
 	
@@ -85,15 +110,83 @@ class ApiVersionModelBuilder extends ApiVersionBaseVisitor<Void> {
 		this.currentNamespace.addType(structure);
 		this.currentStructure = structure;
 		
+		// Resolve predecessor, if necessary
+		if (ctx.replacedName != null) {
+			// Explicit replacement
+			var optPredecessorNamespace = this.currentNamespace.getPredecessor();
+			
+			if (!optPredecessorNamespace.isPresent()) {
+				throw new IllegalArgumentException("No predecessor for namespace '" + this.currentNamespace.getName() + "', though contained type '" + structure.getName() + "' is an explicit replacement.");
+			}
+			
+			var predecessorNamespace = optPredecessorNamespace.get(); 
+			var path = asPath(ctx.replacedName);
+			
+			var predecessorType = path.resolveType(predecessorNamespace);
+			
+			if (!predecessorType.isPresent()) {
+				throw new IllegalArgumentException("The specified predecessor type '" + path + "' cannot be found.");
+			}
+			
+			this.updatePredecessorForStructure(structure, predecessorType);			
+		} else if (this.currentNamespace.getPredecessor().isPresent()) {
+			// Implicit replacement (the structure may have existed before)
+			var predecessorNamespace = this.currentNamespace.getPredecessor().get();
+			var path = asPath(ctx.name);
+			
+			var predecessorType = path.resolveType(predecessorNamespace);
+			this.updatePredecessorForStructure(structure, predecessorType);
+		}
+		
 		return super.visitStructureDeclaration(ctx);
+	}
+	
+	private void updatePredecessorForStructure(Structure structure, Optional<Type> predecessor) {
+		if (predecessor.isPresent()) {
+			Type predecessorType = predecessor.get();
+			
+			if (predecessorType instanceof Structure) {
+				structure.setPredecessor(Optional.of((Structure) predecessorType));
+			} else {
+				throw new IllegalArgumentException("Predecessor of " + structure.getFullyQualifiedName() + "' is not a structure.");
+			}
+		}
 	}
 	
 	@Override
 	public Void visitFieldDeclaration(FieldDeclarationContext ctx) {
 		var fieldName = asText(ctx.name);
-		var fieldType = this.resolveType(ctx.baseType, ctx.typeName);		
-		
+		var fieldType = this.resolveType(ctx.baseType, ctx.typeName);
+			
 		var field = new Field(this.currentStructure, fieldName, fieldType);
+		
+		// Resolve predecessor, if appropriate
+		if (ctx.replacedName != null) {
+			// Explicit replacement
+			var optPredecessorStructure = this.currentStructure.getPredecessor();
+			
+			if (!optPredecessorStructure.isPresent()) {
+				throw new IllegalArgumentException("No predecessor for structure '" + this.currentStructure.getName() + "', though contained type '" + field.getName() + "' is an explicit replacement.");
+			}
+			
+			var predecessorStructure = optPredecessorStructure.get();
+			var path = asPath(ctx.replacedName);
+			
+			var predecessor = path.resolveField(predecessorStructure);
+			
+			if (!predecessor.isPresent()) {
+				throw new IllegalArgumentException("The specified predecessor field '" + path + "' cannot be found.");
+			}
+			
+			field.setPredecessor(predecessor);			
+		} else if (this.currentStructure.getPredecessor().isPresent()) {
+			// Implicit replacement
+			var predecessorStructure = this.currentStructure.getPredecessor().get();
+			var path = asPath(ctx.name);
+			
+			var predecessor = path.resolveField(predecessorStructure);
+			field.setPredecessor(predecessor);
+		}		
 		
 		// Check for dynamic fields in fixed structures
 		if (this.currentStructure.isFixed() && !field.getType().isFixed()) {
@@ -103,6 +196,24 @@ class ApiVersionModelBuilder extends ApiVersionBaseVisitor<Void> {
 		this.currentStructure.addField(field);
 		
 		return super.visitFieldDeclaration(ctx);
+	}
+	
+	private static Path asPath(QualifiedNameContext qualifiedName) {
+		List<String> parts = new ArrayList<>(qualifiedName.parts.size());
+		
+		for (var part : qualifiedName.parts) {
+			parts.add(part.start.getText());
+		}
+		
+		return new Path(parts);
+	}
+	
+	private static Path asPath(IdentifierContext identifier) {
+		return asPath(identifier.start.getText());
+	}
+	
+	private static Path asPath(String onlyPart) {
+		return new Path(Arrays.asList(onlyPart));
 	}
 	
 	private Type resolveType(BaseTypeSpecContext baseType, QualifiedNameContext qualifiedName) {

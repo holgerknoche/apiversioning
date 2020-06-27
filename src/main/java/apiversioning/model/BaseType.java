@@ -1,5 +1,7 @@
 package apiversioning.model;
 
+import java.util.Optional;
+
 public abstract class BaseType implements Type {
 
 	@Override
@@ -25,6 +27,11 @@ public abstract class BaseType implements Type {
 	@Override
 	public String toString() {
 		return this.getName();
+	}
+	
+	@Override
+	public Optional<Field> findField(String name) {
+		return Optional.empty();
 	}
 	
 }
