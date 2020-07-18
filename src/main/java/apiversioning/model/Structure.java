@@ -53,5 +53,14 @@ public class Structure extends UserDefinedType {
 	public Optional<Field> findField(String name) {
 		return Optional.ofNullable(this.fieldLookup.get(name));
 	}
+	
+	public List<Field> getFields() {
+		return this.fields;
+	}
+	
+	@Override
+	public String toString() {
+		return "Structure " + this.getName() + ", Fields " + this.fields;
+	}
 		
 }

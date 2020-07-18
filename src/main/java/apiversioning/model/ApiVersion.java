@@ -32,5 +32,10 @@ public class ApiVersion implements ApiVersionElement {
 	public Optional<Namespace> findNamespace(String name) {
 		return Optional.ofNullable(this.namespaceLookup.get(name));
 	}
+	
+	@Override
+	public String toString() {
+		return "API version, namespaces: " + this.getNamespaces().toString();
+	}
 		
 }

@@ -81,5 +81,10 @@ public class Namespace {
 	public Path getPath() {
 		return new Path(Arrays.asList(this.getName()));
 	}
+	
+	@Override
+	public String toString() {
+		return "Namespace " + this.getName();
+	}
 
 }
