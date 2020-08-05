@@ -5,9 +5,9 @@ import java.lang.reflect.Method;
 
 import apiversioning.annotations.APIKey;
 
-public class ApiKeyRouter implements InvocationHandler {
+public abstract class ApiKeyRouter implements InvocationHandler {
 
-	private final Object delegate;
+	protected final Object delegate;
 
 	public ApiKeyRouter(Object delegate) {
 		this.delegate = delegate;
@@ -22,8 +22,7 @@ public class ApiKeyRouter implements InvocationHandler {
 			return method.invoke(this.delegate, arguments);
 		}
 
-		var delegateMethod = this.findDelegateMethodForKey(desiredApiKey);
-		return delegateMethod.invoke(this.delegate, arguments);
+		return this.invokeApiMethod(desiredApiKey, arguments);		
 	}
 
 	private Long getApiKeyOf(Method method) {
@@ -36,7 +35,7 @@ public class ApiKeyRouter implements InvocationHandler {
 		return keyAnnotation.value();
 	}
 
-	private Method findDelegateMethodForKey(Long apiKey) {
+	protected Method findDelegateMethodForKey(Long apiKey) {
 		var delegateType = this.delegate.getClass();
 
 		for (var intf : delegateType.getInterfaces()) {
@@ -56,5 +55,7 @@ public class ApiKeyRouter implements InvocationHandler {
 
 		throw new IllegalStateException("No method for API key " + apiKey + " on type " + delegateType + ".");
 	}
+	
+	protected abstract Object invokeApiMethod(Long apiKey, Object[] arguments) throws Throwable;
 
 }
