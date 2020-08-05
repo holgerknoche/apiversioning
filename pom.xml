@@ -32,6 +32,22 @@
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
+				<groupId>hkn.apiversioning</groupId>
+				<artifactId>apiversioning-runtime-inprocess</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>hkn.apiversioning</groupId>
+				<artifactId>apiversioning-testpublicapi-inprocess</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>hkn.apiversioning</groupId>
+				<artifactId>apiversioning-testprovider-inprocess</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+		
+			<dependency>
 				<groupId>org.antlr</groupId>
 				<artifactId>antlr4</artifactId>
 				<version>${antlr.version}</version>
@@ -66,6 +82,9 @@
 	<modules>
 		<module>apiversioning-dsl</module>
 		<module>apiversioning-runtime-inprocess</module>
+		<module>apiversioning-testconsumer-inprocess</module>
+		<module>apiversioning-testprovider-inprocess</module>
+		<module>apiversioning-testpublicapi-inprocess</module>
 	</modules>
 
 </project>
