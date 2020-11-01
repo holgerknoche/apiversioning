@@ -1,5 +1,6 @@
 package provider.api.impl;
 
+import provider.api.CitySpec;
 import provider.api.PostalAddress;
 
 public class PostalAddressImpl implements PostalAddress {
@@ -8,15 +9,12 @@ public class PostalAddressImpl implements PostalAddress {
 	
 	private final int number;
 	
-	private final int postalCode;
-	
-	private final String cityName;
-	
-	public PostalAddressImpl(String streetName, int number, int postalCode, String cityName) {
+	private final CitySpec citySpec;
+		
+	public PostalAddressImpl(String streetName, int number, CitySpec citySpec) {
 		this.streetName = streetName;
 		this.number = number;
-		this.postalCode = postalCode;
-		this.cityName = cityName;
+		this.citySpec = citySpec;
 	}
 
 	@Override
@@ -28,15 +26,9 @@ public class PostalAddressImpl implements PostalAddress {
 	public int getNumber() {
 		return this.number;
 	}
-
-	@Override
-	public int getPostalCode() {
-		return this.postalCode;
-	}
-
-	@Override
-	public String getCityName() {
-		return this.cityName;
+	
+	public CitySpec getCitySpec() {
+		return this.citySpec;
 	}
 
 }

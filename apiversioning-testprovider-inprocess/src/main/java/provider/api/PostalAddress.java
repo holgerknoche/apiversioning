@@ -10,10 +10,7 @@ public interface PostalAddress {
 	@APIKey(0x00020002)
 	public int getNumber();
 	
-	@APIKey(0x00020003)
-	public int getPostalCode();
-	
-	@APIKey(0x00020004)
-	public String getCityName();
+	@APIKey(0x00020005)
+	public CitySpec getCitySpec();
 
 }

@@ -24,7 +24,7 @@ public class TestConsumer {
 		System.out.println(address.getStreet() + " " + address.getNumber());
 		System.out.println(address.getCityCode() + " " + address.getCity());
 		
-		this.runBenchmark(10000000, 1000000);
+		//this.runBenchmark(10000000, 1000000);
 	}
 	
 	private void runBenchmark(int warmupIterations, int timedIterations) {
